@@ -2,11 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>古早亭線上點餐</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f8f9fa; margin: 0; padding: 15px; padding-bottom: 120px; }
+        body { font-family: "Microsoft JhengHei", -apple-system, sans-serif; background: #f8f9fa; margin: 0; padding: 15px; padding-bottom: 140px; }
         h2 { text-align: center; color: #2c3e50; margin-bottom: 5px; }
         p.subtitle { text-align: center; color: #7f8c8d; font-size: 0.9em; margin-bottom: 20px; }
         .category { display: block; background: #27ae60; color: white; padding: 6px 15px; border-radius: 20px; margin: 25px 0 10px 0; font-size: 0.95em; font-weight: bold; width: fit-content; }
@@ -19,29 +19,32 @@
         .btn-l:active, .btn-xl:active { opacity: 0.7; transform: scale(0.95); }
         
         /* 底部購物車 */
-        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; z-index: 100; border-radius: 20px 20px 0 0; }
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; z-index: 100; border-radius: 20px 20px 0 0; }
         .total-info { display: flex; flex-direction: column; }
         .total-price { font-size: 1.4em; font-weight: bold; color: #e67e22; }
-        .btn-submit { background: #e67e22; color: white; padding: 12px 30px; font-weight: bold; font-size: 1.1em; border-radius: 30px; border: none; box-shadow: 0 4px 10px rgba(230,126,34,0.3); }
+        .btn-submit { background: #e67e22; color: white; padding: 12px 25px; font-weight: bold; font-size: 1.1em; border-radius: 30px; border: none; }
+        .btn-clear { background: #eee; color: #777; font-size: 0.8em; border-radius: 5px; padding: 5px 10px; margin-top: 5px; border: none; }
         
-        /* 彈窗樣式優化 */
-        .loading-mask { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; color:white; justify-content:center; align-items:center; }
+        /* 載入中遮罩 */
+        .loading-mask { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:999; color:white; justify-content:center; align-items:center; flex-direction: column; }
     </style>
 </head>
 <body>
 
-    <div id="loading" class="loading-mask">訂單傳送中...</div>
+    <div id="loading" class="loading-mask">
+        <div>傳送訂單中...</div>
+    </div>
 
     <h2>古早亭</h2>
     <p class="subtitle">仙草與古早味茶飲專賣</p>
 
-    <div id="menu-container">
-        </div>
+    <div id="menu-container"></div>
 
     <div class="cart-bar">
         <div class="total-info">
             <span style="font-size: 0.85em; color: #7f8c8d;">已選 <span id="count" style="color:#27ae60; font-weight:bold;">0</span> 杯</span>
-            <span class="total-price">總金額: $<span id="total">0</span></span>
+            <span class="total-price">總計: $<span id="total">0</span></span>
+            <button class="btn-clear" onclick="clearCart()">🗑️ 清空重選</button>
         </div>
         <button class="btn-submit" onclick="sendOrder()">確認送出</button>
     </div>
@@ -73,7 +76,7 @@
     let cart = [];
     let totalPrice = 0;
 
-    // 渲染菜單
+    // 渲染選單
     const container = document.getElementById('menu-container');
     menuData.forEach(section => {
         let html = `<span class="category">${section.cat}</span>`;
@@ -88,18 +91,26 @@
 
     // 初始化 LIFF
     liff.init({ liffId: "2009451030-e48JrFOA" }).then(() => {
-        if (!liff.isLoggedIn()) {
-            liff.login();
-        }
-    }).catch(err => console.error("LIFF 初始化失敗", err));
+        if (!liff.isLoggedIn()) liff.login();
+    }).catch(err => console.error(err));
 
     function add(name, price) {
-        const sweet = prompt("甜度？(例:微糖/無糖)", "微糖");
-        const ice = prompt("冰量？(例:少冰/去冰)", "微冰");
-        if (sweet == null || ice == null) return;
-        
+        const sweet = prompt("甜度？(例:微糖/無糖)", "微糖") || "正常";
+        const ice = prompt("冰量？(例:少冰/去冰)", "微冰") || "正常";
         cart.push({name, price, sweet, ice});
         totalPrice += price;
+        updateDisplay();
+    }
+
+    function clearCart() {
+        if(confirm("確定要清空所有已選飲料嗎？")) {
+            cart = [];
+            totalPrice = 0;
+            updateDisplay();
+        }
+    }
+
+    function updateDisplay() {
         document.getElementById('total').innerText = totalPrice;
         document.getElementById('count').innerText = cart.length;
     }
@@ -111,22 +122,21 @@
 
         let msg = "📝 古早亭新訂單\n------------------\n";
         cart.forEach((it, i) => {
-            msg += `${i+1}. ${it.name} (${it.sweet}/${it.ice}) - $${it.price}\n`;
+            msg += `${i+1}. ${it.name} (${it.sweet}/${it.ice}) $${it.price}\n`;
         });
-        msg += `------------------\n💰 總金額：$${totalPrice}`;
+        msg += `------------------\n💰 總計金額：$${totalPrice}`;
 
-        // 檢查是否在 LINE 環境內
         if (liff.isInClient()) {
             liff.sendMessages([{ type: 'text', text: msg }]).then(() => {
-                alert("訂單已送出！我們會盡快為您製作。");
+                alert("訂單已傳送成功！");
                 liff.closeWindow();
             }).catch(err => {
                 document.getElementById('loading').style.display = 'none';
-                alert("傳送失敗，請直接截圖購物車傳給我們！");
+                alert("傳送失敗，請截圖購物車。");
             });
         } else {
             document.getElementById('loading').style.display = 'none';
-            alert("請在 LINE App 內使用此功能送出訂單。");
+            alert("請在 LINE App 內開啟方可下單。");
             console.log(msg);
         }
     }
